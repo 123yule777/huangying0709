@@ -1,0 +1,29 @@
+[
+ {
+  "id": "computer",
+  "name": "计算机",
+  "title": "计算机基础",
+  "examDate": "2027-04-17",
+  "total": 2000,
+  "kps": 278,
+  "chapters": 9
+ },
+ {
+  "id": "yw",
+  "name": "语文",
+  "title": "大学语文",
+  "examDate": "2027-04-17",
+  "total": 902,
+  "kps": 134,
+  "chapters": 7
+ },
+ {
+  "id": "en",
+  "name": "英语",
+  "title": "大学英语",
+  "examDate": "2027-04-17",
+  "total": 1671,
+  "kps": 107,
+  "chapters": 4
+ }
+]

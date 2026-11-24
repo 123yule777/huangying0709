@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F7F6F2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="过线计划">
+<link rel="icon" href="icons/icon-192.png">
+<title>过线计划 · 四川专升本计算机</title>
+<link rel="stylesheet" href="app.css?v=3">
+</head>
+<body>
+<div id="app">
+  <div class="boot"><div class="boot-mark">过</div><div class="boot-text">正在准备题库…</div></div>
+</div>
+<div id="sheet" class="sheet" hidden><div class="sheet-inner" id="sheet-inner"></div></div>
+<script src="js/cache.js?v=4"></script>
+<script src="js/sfx.js?v=3"></script>
+<script src="js/app.js?v=3"></script>
+<script>
+  /* 回到"普通网页 + 资源缓存"模式：注销历史 Service Worker，清掉它的缓存 */
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function (rs) {
+      rs.forEach(function (r) { r.unregister(); });
+    }).catch(function () {});
+  }
+  if (window.caches) {
+    caches.keys().then(function (ks) {
+      ks.filter(function (k) { return k.indexOf("guoxian-v") === 0; })
+        .forEach(function (k) { caches.delete(k); });
+    }).catch(function () {});
+  }
+  if (/cacheprobe/.test(location.search)) {
+    setTimeout(function () {
+      if (!("caches" in window)) { document.title = "no-cache-api"; return; }
+      caches.keys().then(function (keys) {
+        var n = 0;
+        return Promise.all(keys.map(function (k) {
+          return caches.open(k).then(function (c) { return c.keys().then(function (l) { n += l.length; }); });
+        })).then(function () { document.title = "caches=" + keys.join(",") + " entries=" + n; });
+      });
+    }, 2500);
+  }
+</script>
+</body>
+</html>
