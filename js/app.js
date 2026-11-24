@@ -202,7 +202,17 @@
     ASSET_CACHE.json("data/subjects.json")
       .then(function (subs) {
         SUBJECTS = subs || [];
-        return loadSubjectData(store.current || "computer");
+        return loadSubjectData(store.current || "computer").then(function () {
+    /* 仅调试：?dbg=1&seed=1 注入几道错题，便于验证薄弱考点相关界面 */
+    if (/dbg/.test(location.search) && /seed/.test(location.search) && DB.mods[0]) {
+      DB.mods[0].points.slice(0, 3).forEach(function (kp) {
+        kp.qids.slice(0, 3).forEach(function (id) {
+          PR().progress[id] = { n: 2, ok: 0, box: 0, due: Date.now() };
+        });
+      });
+      save();
+    }
+  });
       })
       .then(function () {
       render();
@@ -239,6 +249,12 @@
           var wl = "ABCD".split("").filter(function (L) { return one3.answer.indexOf(L) < 0; })[0];
           judge([wl]);
         }, 400);
+      }
+      else if (h === "weak") {
+        var wpool = weakPool();
+        var wleft = Math.max(0, (PR().daily.goal || 20) - todayDone());
+        if (wpool.length > wleft) showWeakConfirm(wpool.length, wleft);
+        else startSession({ mode: "weak" });
       }
       else if (h === "subj") startSession({ mode: "subjective" });
       else if (h.indexOf("kpc.") === 0) {
@@ -481,10 +497,8 @@
         if (list.length) mode = "subjective";
       }
     } else if (mode === "weak") {
-      var wk = weakKps();
-      var ids = [];
-      wk.forEach(function (w) { ids = ids.concat(pick(w.kp.qids, 5)); });
-      list = ids.map(itemById).filter(function (q) { return q && isObj(q); });
+      list = weakPool().map(itemById).filter(Boolean);
+      if (opts.limit) list = shuffle(list).slice(0, opts.limit);
     } else if (mode === "subjective") {
       list = pick(DB.list.filter(isSubj), opts.n || 8);
     } else if (mode === "exam") {
@@ -922,6 +936,32 @@
     });
   }
 
+  function weakPool() {
+    var ids = [];
+    weakKps().forEach(function (w) {
+      var obj = w.kp.qids.filter(function (id) { var q = DB.items[id]; return q && isObj(q); });
+      ids = ids.concat(pick(obj, 5));
+    });
+    return ids;
+  }
+
+  function showWeakConfirm(total, left) {
+    var title = left > 0
+      ? "薄弱考点共 " + total + " 题，今日目标还剩 " + left + " 题。"
+      : "今日目标已完成，薄弱考点还有 " + total + " 题。";
+    document.getElementById("sheet-inner").innerHTML =
+      '<div class="dots"><i></i><i></i><i></i></div>' +
+      '<div class="label">薄弱考点</div>' +
+      '<div class="mid" style="margin:8px 0 8px">要一次做完吗？</div>' +
+      '<p class="muted" style="line-height:1.7;margin-bottom:16px">' + title +
+      "<br>一次做完会超出今日目标，但复习进度照常记录。</p>" +
+      '<button class="btn lime" data-act="weak-all">全部做完 · ' + total + " 题</button>" +
+      (left > 0 ? '<button class="btn ghost" style="margin-top:10px" data-act="weak-part" data-n="' + left + '">只做今日剩余 · ' + left + " 题</button>" : "") +
+      '<button class="btn ghost" style="margin-top:10px" data-act="close">取消</button>';
+    document.getElementById("sheet").hidden = false;
+    SFX.open();
+  }
+
   function showKpConfirm(kid, total, left) {
     var kp = DB.byKp[kid] || { name: "这个考点" };
     var title = left > 0 ? "这个考点共 " + total + " 题，今日目标还剩 " + left + " 题。" : "今日目标已完成，这个考点还有 " + total + " 题。";
@@ -994,7 +1034,15 @@
     if (act === "auth-mode") { showAuth(t.getAttribute("data-m")); return; }
     if (act === "auth-submit") { submitAuth(); return; }
     if (act === "tab") { S.screen = "home"; S.tab = t.getAttribute("data-tab"); if (S.tab !== "home") S.screen = S.tab; render(); return; }
-    if (act === "start") return startSession({ mode: t.getAttribute("data-mode") });
+    if (act === "start") {
+      var mm = t.getAttribute("data-mode");
+      if (mm === "weak") {
+        var pool = weakPool();
+        var left = Math.max(0, (PR().daily.goal || 20) - todayDone());
+        if (pool.length > left) { showWeakConfirm(pool.length, left); return; }
+      }
+      return startSession({ mode: mm });
+    }
     if (act === "pick") {
       var v = t.getAttribute("data-v");
       if (S.sess.mode === "exam" || cur().type === "multi") {
@@ -1032,6 +1080,8 @@
       closeSheet();
       return startSession({ qids: kp0.qids });
     }
+    if (act === "weak-all") { closeSheet(); startSession({ mode: "weak" }); return; }
+    if (act === "weak-part") { closeSheet(); startSession({ mode: "weak", limit: parseInt(t.getAttribute("data-n"), 10) || 10 }); return; }
     if (act === "kp-all") { closeSheet(); startSession({ qids: DB.byKp[t.getAttribute("data-kp")].qids }); return; }
     if (act === "kp-part") {
       var kid1 = t.getAttribute("data-kp");
